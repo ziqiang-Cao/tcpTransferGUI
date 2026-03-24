@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=TCP 文件传输服务端
+Name[zh_CN]=TCP 文件传输服务端
+Comment=启动 TCPTransGUI 服务端控制台
+Comment[zh_CN]=启动 TCPTransGUI 服务端控制台
+Exec=tcptransgui-server
+TryExec=tcptransgui-server
+Icon=tcptransgui-server
+Terminal=false
+Categories=System;Monitor;
+Keywords=tcp;file;transfer;server;console;admin;服务端;管理;
+StartupWMClass=tcpTransServer
+StartupNotify=true

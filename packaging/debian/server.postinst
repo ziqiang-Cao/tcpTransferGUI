@@ -1,0 +1,132 @@
+#!/bin/sh
+set -e
+
+SERVICE_NAME="tcptransgui-server.service"
+ENV_FILE="/etc/default/tcptransgui-server"
+OVERRIDE_DIR="/etc/systemd/system/${SERVICE_NAME}.d"
+OVERRIDE_FILE="${OVERRIDE_DIR}/override.conf"
+
+detect_service_user() {
+    if [ -n "${TCPTRANSGUI_SERVICE_USER:-}" ] && id "${TCPTRANSGUI_SERVICE_USER}" >/dev/null 2>&1; then
+        echo "${TCPTRANSGUI_SERVICE_USER}"
+        return 0
+    fi
+    if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ] && id "${SUDO_USER}" >/dev/null 2>&1; then
+        echo "${SUDO_USER}"
+        return 0
+    fi
+    if command -v logname >/dev/null 2>&1; then
+        CANDIDATE="$(logname 2>/dev/null || true)"
+        if [ -n "${CANDIDATE}" ] && [ "${CANDIDATE}" != "root" ] && id "${CANDIDATE}" >/dev/null 2>&1; then
+            echo "${CANDIDATE}"
+            return 0
+        fi
+    fi
+    CANDIDATE="$(awk -F: '$3 >= 1000 && $1 != "nobody" && $7 !~ /(nologin|false)$/ { print $1; exit }' /etc/passwd)"
+    if [ -n "${CANDIDATE}" ] && id "${CANDIDATE}" >/dev/null 2>&1; then
+        echo "${CANDIDATE}"
+        return 0
+    fi
+    echo "root"
+}
+
+read_env_value() {
+    KEY_NAME="$1"
+    if [ ! -f "${ENV_FILE}" ]; then
+        return 1
+    fi
+    awk -F= -v search_key="${KEY_NAME}" '
+        $1 == search_key {
+            sub(/^[[:space:]]+/, "", $2)
+            sub(/[[:space:]]+$/, "", $2)
+            gsub(/^"/, "", $2)
+            gsub(/"$/, "", $2)
+            print $2
+            exit
+        }
+    ' "${ENV_FILE}"
+}
+
+configure_runtime_paths() {
+    SERVICE_USER="$(detect_service_user)"
+    SERVICE_GROUP="$(id -gn "${SERVICE_USER}" 2>/dev/null || echo "${SERVICE_USER}")"
+    SERVICE_HOME="$(getent passwd "${SERVICE_USER}" | cut -d: -f6)"
+    if [ -z "${SERVICE_HOME}" ]; then
+        SERVICE_HOME="$(eval echo "~${SERVICE_USER}")"
+    fi
+    SERVICE_DATA_ROOT="${SERVICE_HOME}/.local/share/TCPTransGUI"
+    DEFAULT_DATA_DIR="${SERVICE_HOME}/.local/share/TCPTransGUI/server_data"
+
+    HOST_VALUE="$(read_env_value TCPTRANSGUI_HOST || true)"
+    PORT_VALUE="$(read_env_value TCPTRANSGUI_PORT || true)"
+    DATA_DIR_VALUE="$(read_env_value TCPTRANSGUI_DATA_DIR || true)"
+    HOST_VALUE="${HOST_VALUE:-0.0.0.0}"
+    PORT_VALUE="${PORT_VALUE:-9999}"
+    if [ -z "${DATA_DIR_VALUE}" ] || [ "${DATA_DIR_VALUE}" = "/var/lib/tcptransgui/server_data" ]; then
+        DATA_DIR_VALUE="${DEFAULT_DATA_DIR}"
+    fi
+
+    install -d "${OVERRIDE_DIR}"
+    if [ "${DATA_DIR_VALUE#${SERVICE_DATA_ROOT}}" != "${DATA_DIR_VALUE}" ]; then
+        install -d "${SERVICE_DATA_ROOT}" "${DATA_DIR_VALUE}"
+    else
+        install -d "${DATA_DIR_VALUE}"
+    fi
+    cat > "${ENV_FILE}" <<EOF
+TCPTRANSGUI_HOST=${HOST_VALUE}
+TCPTRANSGUI_PORT=${PORT_VALUE}
+TCPTRANSGUI_DATA_DIR=${DATA_DIR_VALUE}
+EOF
+    cat > "${OVERRIDE_FILE}" <<EOF
+[Service]
+User=${SERVICE_USER}
+Group=${SERVICE_GROUP}
+EOF
+    if [ "${DATA_DIR_VALUE#${SERVICE_DATA_ROOT}}" != "${DATA_DIR_VALUE}" ]; then
+        chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "${SERVICE_DATA_ROOT}" >/dev/null 2>&1 || true
+    else
+        chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "${DATA_DIR_VALUE}" >/dev/null 2>&1 || true
+    fi
+}
+
+refresh_desktop() {
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+    fi
+}
+
+install_user_shortcut() {
+    if [ -z "${SUDO_USER:-}" ] || [ "${SUDO_USER}" = "root" ]; then
+        return 0
+    fi
+    USER_HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"
+    if [ -z "${USER_HOME}" ] || [ ! -d "${USER_HOME}" ]; then
+        return 0
+    fi
+    DESKTOP_DIR="${USER_HOME}/Desktop"
+    if command -v su >/dev/null 2>&1 && command -v xdg-user-dir >/dev/null 2>&1; then
+        USER_DESKTOP="$(su - "${SUDO_USER}" -c 'xdg-user-dir DESKTOP 2>/dev/null' || true)"
+        if [ -n "${USER_DESKTOP}" ] && [ -d "${USER_DESKTOP}" ]; then
+            DESKTOP_DIR="${USER_DESKTOP}"
+        fi
+    fi
+    if [ ! -d "${DESKTOP_DIR}" ]; then
+        return 0
+    fi
+    install -m 755 /usr/share/applications/tcptransgui-server.desktop "${DESKTOP_DIR}/tcptransgui-server.desktop" || true
+    chown "${SUDO_USER}":"${SUDO_USER}" "${DESKTOP_DIR}/tcptransgui-server.desktop" || true
+}
+
+configure_runtime_paths
+
+if command -v systemctl >/dev/null 2>&1; then
+    systemctl daemon-reload || true
+    systemctl stop tcptransgui-server.service >/dev/null 2>&1 || true
+    systemctl disable tcptransgui-server.service >/dev/null 2>&1 || true
+    systemctl reset-failed tcptransgui-server.service >/dev/null 2>&1 || true
+fi
+
+refresh_desktop
+install_user_shortcut
+
+exit 0

@@ -1,0 +1,35 @@
+#!/bin/sh
+set -e
+
+refresh_desktop() {
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+    fi
+}
+
+install_user_shortcut() {
+    if [ -z "${SUDO_USER:-}" ] || [ "${SUDO_USER}" = "root" ]; then
+        return 0
+    fi
+    USER_HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"
+    if [ -z "${USER_HOME}" ] || [ ! -d "${USER_HOME}" ]; then
+        return 0
+    fi
+    DESKTOP_DIR="${USER_HOME}/Desktop"
+    if command -v su >/dev/null 2>&1 && command -v xdg-user-dir >/dev/null 2>&1; then
+        USER_DESKTOP="$(su - "${SUDO_USER}" -c 'xdg-user-dir DESKTOP 2>/dev/null' || true)"
+        if [ -n "${USER_DESKTOP}" ] && [ -d "${USER_DESKTOP}" ]; then
+            DESKTOP_DIR="${USER_DESKTOP}"
+        fi
+    fi
+    if [ ! -d "${DESKTOP_DIR}" ]; then
+        return 0
+    fi
+    install -m 755 /usr/share/applications/tcptransgui-client.desktop "${DESKTOP_DIR}/tcptransgui-client.desktop" || true
+    chown "${SUDO_USER}":"${SUDO_USER}" "${DESKTOP_DIR}/tcptransgui-client.desktop" || true
+}
+
+refresh_desktop
+install_user_shortcut
+
+exit 0

@@ -1,0 +1,10 @@
+name: tcptransgui-arm64
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pyqt=5.15
+  - pyinstaller>=6,<7
+  - cryptography>=42,<46
+  - pip
+

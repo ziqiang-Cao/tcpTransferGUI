@@ -1,0 +1,15 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=TCP 文件传输客户端
+Name[zh_CN]=TCP 文件传输客户端
+Comment=启动 TCPTransGUI 客户端
+Comment[zh_CN]=启动 TCPTransGUI 客户端
+Exec=tcptransgui-client
+TryExec=tcptransgui-client
+Icon=tcptransgui-client
+Terminal=false
+Categories=Network;FileTransfer;
+Keywords=tcp;file;transfer;upload;download;client;网盘;上传;下载;
+StartupWMClass=tcpTransClient
+StartupNotify=true

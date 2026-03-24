@@ -1,0 +1,22 @@
+[Unit]
+Description=TCPTransGUI Headless Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/default/tcptransgui-server
+WorkingDirectory=/opt/tcptransgui/server
+ExecStart=/opt/tcptransgui/server/tcpTransServer --headless --host ${TCPTRANSGUI_HOST} --port ${TCPTRANSGUI_PORT} --data-dir ${TCPTRANSGUI_DATA_DIR}
+Restart=on-failure
+RestartSec=3
+User=tcptransgui
+Group=tcptransgui
+KillMode=control-group
+TimeoutStopSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

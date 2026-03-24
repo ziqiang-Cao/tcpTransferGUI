@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+.vscode/
+client_data/
+server_data/
+*.uploading
+*.downloading
+*.tmp
+*.part
+build/
+dist/
+release/

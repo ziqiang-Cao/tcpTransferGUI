@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+fi
+
+if [ -n "${SUDO_USER:-}" ] && [ "${SUDO_USER}" != "root" ]; then
+    USER_HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"
+    if [ -n "${USER_HOME}" ] && [ -f "${USER_HOME}/Desktop/tcptransgui-client.desktop" ]; then
+        rm -f "${USER_HOME}/Desktop/tcptransgui-client.desktop" || true
+    fi
+fi
+
+exit 0
