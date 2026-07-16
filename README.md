@@ -1,4 +1,5 @@
 # TCP 文件传输 GUI
+<img width="486" height="587" alt="图片" src="https://github.com/user-attachments/assets/3380b30d-45d4-49b2-9e12-fb782a1ed129" />
 
 基于纯 TCP 的桌面文件传输工具，包含客户端与服务端 PyQt 界面，支持：
 
